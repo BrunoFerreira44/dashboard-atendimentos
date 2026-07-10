@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Financeiro para Psicologas</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Resultados financeiros</p>
+          <h1 id="page-title">Painel de atendimentos</h1>
+        </div>
+
+        <div class="upload-actions">
+          <input
+            id="sheet-input"
+            class="sr-only"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+          />
+          <button id="upload-button" class="primary-button" type="button">
+            <span aria-hidden="true">+</span>
+            Selecionar planilha
+          </button>
+          <button id="demo-button" class="ghost-button" type="button">Ver exemplo</button>
+        </div>
+      </section>
+
+      <section id="empty-state" class="empty-state">
+        <div class="empty-copy">
+          <p class="eyebrow">Planilha esperada</p>
+          <h2>Data do atendimento, Nome do paciente e Valor da sessão</h2>
+          <p>
+            Carregue um arquivo Excel ou CSV para gerar os indicadores, ranking de pacientes
+            e evolução mensal.
+          </p>
+        </div>
+      </section>
+
+      <section id="dashboard" class="dashboard is-hidden" aria-live="polite">
+        <div class="summary-bar">
+          <div class="metric-card accent-green">
+            <span>Receita total</span>
+            <strong id="total-revenue">R$ 0,00</strong>
+          </div>
+          <div class="metric-card accent-blue">
+            <span>Atendimentos</span>
+            <strong id="total-sessions">0</strong>
+          </div>
+          <div class="metric-card accent-coral">
+            <span>Pacientes</span>
+            <strong id="total-patients">0</strong>
+          </div>
+        </div>
+
+        <div class="context-line">
+          <span id="file-name">Nenhum arquivo selecionado</span>
+          <span id="date-range">-</span>
+        </div>
+
+        <section class="chart-grid">
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <h2>Receita por mês</h2>
+                <p>Evolução dos ganhos ao longo do tempo</p>
+              </div>
+            </div>
+            <div class="chart-wrap tall">
+              <canvas id="monthly-revenue-chart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Receita por paciente</h2>
+                <p>Soma histórica por paciente</p>
+              </div>
+            </div>
+            <div class="chart-wrap tall">
+              <canvas id="patient-revenue-chart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Sessões por mês</h2>
+                <p>Volume de atendimentos mensais</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="monthly-sessions-chart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Dias da semana</h2>
+                <p>Distribuição dos atendimentos</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="weekday-chart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel panel-table">
+            <div class="panel-header">
+              <div>
+                <h2>Top pacientes</h2>
+                <p>Receita, sessões e valor médio</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Paciente</th>
+                    <th>Receita</th>
+                    <th>Sessões</th>
+                    <th>Média</th>
+                  </tr>
+                </thead>
+                <tbody id="patients-table"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>
