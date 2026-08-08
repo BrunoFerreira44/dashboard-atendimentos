@@ -4,7 +4,7 @@ Dashboard financeiro simples para transformar uma planilha de atendimentos em in
 
 ## O que o dashboard faz
 
-- Le arquivos `.xlsx`, `.xls` e `.csv`.
+- Le arquivos `.xlsx`, `.xls`, `.csv` e planilhas do Google Sheets selecionadas pelo navegador.
 - Identifica automaticamente as colunas principais da planilha.
 - Calcula a receita total.
 - Conta o total de atendimentos.
@@ -68,8 +68,9 @@ Data do atendimento;Nome do paciente;Valor da sessao
 
 - Excel: `.xlsx` e `.xls`
 - CSV: `.csv`
+- Google Sheets: planilhas identificadas pelo tipo `application/vnd.google-apps.spreadsheet`
 
-Para arquivos Excel, o dashboard le a primeira aba da pasta de trabalho. Se houver varias abas, deixe os dados principais na primeira.
+Para arquivos Excel e planilhas do Google Sheets, o dashboard le a primeira aba. Se houver varias abas, deixe os dados principais na primeira.
 
 ## Como usar
 
@@ -77,7 +78,7 @@ Para arquivos Excel, o dashboard le a primeira aba da pasta de trabalho. Se houv
 2. Preencha uma linha para cada atendimento realizado.
 3. Abra o arquivo `src/index.html` no navegador.
 4. Clique em **Selecionar planilha**.
-5. Escolha o arquivo `.xlsx`, `.xls` ou `.csv`.
+5. Escolha o arquivo `.xlsx`, `.xls`, `.csv` ou uma planilha do Google Sheets.
 6. Aguarde o dashboard gerar os indicadores.
 
 Se quiser testar sem arquivo proprio, clique em **Ver exemplo**.
@@ -109,7 +110,7 @@ http://localhost:8000/src/
 O projeto usa bibliotecas carregadas por CDN no `index.html`:
 
 - Chart.js: renderizacao dos graficos.
-- SheetJS/xlsx: leitura de arquivos Excel.
+- SheetJS/xlsx: leitura de arquivos Excel e planilhas do Google Sheets selecionadas pelo navegador.
 
 Por isso, e necessario ter conexao com a internet quando abrir o dashboard, a menos que essas bibliotecas sejam baixadas e referenciadas localmente no projeto.
 

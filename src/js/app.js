@@ -65,6 +65,7 @@
 
   async function readSpreadsheet(file) {
     const extension = file.name.split(".").pop().toLowerCase();
+    const isGoogleSpreadsheet = file.type === "application/vnd.google-apps.spreadsheet";
 
     if (extension === "csv") {
       const text = await file.text();
@@ -75,14 +76,21 @@
       throw new Error("Biblioteca de leitura do Excel nao carregada. Verifique sua conexao.");
     }
 
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, {
-      cellDates: true,
-      dateNF: "dd/mm/yyyy",
-      type: "array",
-    });
-    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, {
+        cellDates: true,
+        dateNF: "dd/mm/yyyy",
+        type: "array",
+      });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+    } catch (error) {
+      if (isGoogleSpreadsheet) {
+        throw new Error("Nao foi possivel ler a planilha do Google Sheets selecionada.");
+      }
+      throw error;
+    }
   }
 
   function parseCsv(text) {
