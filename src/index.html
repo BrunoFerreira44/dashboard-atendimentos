@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="js/google-config.js" defer></script>
     <script src="js/app.js" defer></script>
   </head>
   <body>
@@ -23,11 +24,14 @@
             id="sheet-input"
             class="sr-only"
             type="file"
-            accept=".xlsx,.xls,.csv,application/vnd.google-apps.spreadsheet"
+            accept=".xlsx,.xls,.csv"
           />
           <button id="upload-button" class="primary-button" type="button">
             <span aria-hidden="true">+</span>
             Selecionar planilha
+          </button>
+          <button id="google-drive-button" class="ghost-button" type="button">
+            Selecionar do Google Drive
           </button>
           <button id="demo-button" class="ghost-button" type="button">Ver exemplo</button>
         </div>

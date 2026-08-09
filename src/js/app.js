@@ -5,6 +5,21 @@
     value: ["valor da sessao", "valor da sessão", "valor", "sessao", "sessão"],
   };
 
+  const googleDrive = {
+    scope: "https://www.googleapis.com/auth/drive.file",
+    sheetsMimeType: "application/vnd.google-apps.spreadsheet",
+    xlsxMimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xlsMimeType: "application/vnd.ms-excel",
+    apiScript: "https://apis.google.com/js/api.js",
+    identityScript: "https://accounts.google.com/gsi/client",
+  };
+  const googleState = {
+    accessToken: null,
+    pickerReady: null,
+    servicesReady: null,
+    tokenClient: null,
+  };
+
   const charts = {};
   const currency = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -20,6 +35,7 @@
   const els = {
     input: document.querySelector("#sheet-input"),
     uploadButton: document.querySelector("#upload-button"),
+    googleDriveButton: document.querySelector("#google-drive-button"),
     demoButton: document.querySelector("#demo-button"),
     emptyState: document.querySelector("#empty-state"),
     dashboard: document.querySelector("#dashboard"),
@@ -40,6 +56,7 @@
 
   els.uploadButton.addEventListener("click", () => els.input.click());
   els.input.addEventListener("change", handleFileUpload);
+  els.googleDriveButton.addEventListener("click", handleGoogleDriveImport);
   els.demoButton.addEventListener("click", () => {
     try {
       const rows = createDemoRows();
@@ -54,8 +71,7 @@
     if (!file) return;
 
     try {
-      const rows = await readSpreadsheet(file);
-      renderDashboard(rows, file.name);
+      await importSpreadsheet(file, file.name);
     } catch (error) {
       showToast(error.message || "Nao foi possivel ler a planilha.");
     } finally {
@@ -63,9 +79,34 @@
     }
   }
 
+  async function handleGoogleDriveImport() {
+    try {
+      setGoogleDriveLoading(true);
+      await initializeGoogleServices();
+      await requestGoogleAccessToken();
+      const document = await openGooglePicker();
+
+      if (!document) {
+        showToast("Selecao do Google Drive cancelada.");
+        return;
+      }
+
+      const file = await downloadGoogleDriveFile(document);
+      await importSpreadsheet(file, file.name);
+    } catch (error) {
+      showToast(error.message || "Nao foi possivel importar a planilha do Google Drive.");
+    } finally {
+      setGoogleDriveLoading(false);
+    }
+  }
+
+  async function importSpreadsheet(file, sourceName) {
+    const rows = await readSpreadsheet(file);
+    renderDashboard(rows, sourceName);
+  }
+
   async function readSpreadsheet(file) {
     const extension = file.name.split(".").pop().toLowerCase();
-    const isGoogleSpreadsheet = file.type === "application/vnd.google-apps.spreadsheet";
 
     if (extension === "csv") {
       const text = await file.text();
@@ -76,21 +117,199 @@
       throw new Error("Biblioteca de leitura do Excel nao carregada. Verifique sua conexao.");
     }
 
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, {
-        cellDates: true,
-        dateNF: "dd/mm/yyyy",
-        type: "array",
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, {
+      cellDates: true,
+      dateNF: "dd/mm/yyyy",
+      type: "array",
+    });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+  }
+
+  async function initializeGoogleServices() {
+    validateGoogleConfiguration();
+
+    if (!googleState.servicesReady) {
+      googleState.servicesReady = Promise.all([
+        loadScript("google-api-script", googleDrive.apiScript),
+        loadScript("google-identity-script", googleDrive.identityScript),
+      ]).then(async () => {
+        if (!window.google?.accounts?.oauth2 || !window.gapi) {
+          throw new Error("Nao foi possivel carregar os servicos do Google.");
+        }
+
+        googleState.tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: window.GOOGLE_DRIVE_CONFIG.clientId,
+          scope: googleDrive.scope,
+          callback: "",
+        });
+
+        googleState.pickerReady = new Promise((resolve, reject) => {
+          window.gapi.load("picker", {
+            callback: resolve,
+            onerror: () => reject(new Error("Nao foi possivel carregar o Google Picker.")),
+            timeout: 10000,
+            ontimeout: () => reject(new Error("O carregamento do Google Picker expirou.")),
+          });
+        });
+
+        await googleState.pickerReady;
       });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      return XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+    }
+
+    try {
+      await googleState.servicesReady;
     } catch (error) {
-      if (isGoogleSpreadsheet) {
-        throw new Error("Nao foi possivel ler a planilha do Google Sheets selecionada.");
-      }
+      googleState.servicesReady = null;
+      googleState.pickerReady = null;
       throw error;
     }
+  }
+
+  function validateGoogleConfiguration() {
+    const config = window.GOOGLE_DRIVE_CONFIG;
+    if (!config?.clientId || !config?.apiKey || !config?.appId) {
+      throw new Error("A integracao com o Google Drive ainda nao foi configurada.");
+    }
+  }
+
+  function loadScript(id, source) {
+    const existing = document.getElementById(id);
+    if (existing?.dataset.loaded === "true") return Promise.resolve();
+
+    if (existing) existing.remove();
+
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.id = id;
+      script.src = source;
+      script.async = true;
+      script.addEventListener(
+        "load",
+        () => {
+          script.dataset.loaded = "true";
+          resolve();
+        },
+        { once: true },
+      );
+      script.addEventListener(
+        "error",
+        () => reject(new Error("Nao foi possivel carregar os recursos do Google.")),
+        { once: true },
+      );
+      document.head.appendChild(script);
+    });
+  }
+
+  function requestGoogleAccessToken() {
+    return new Promise((resolve, reject) => {
+      googleState.tokenClient.callback = (response) => {
+        if (response.error) {
+          reject(new Error(getGoogleAuthorizationError(response.error)));
+          return;
+        }
+
+        googleState.accessToken = response.access_token;
+        resolve();
+      };
+
+      googleState.tokenClient.requestAccessToken({
+        prompt: googleState.accessToken ? "" : "consent",
+      });
+    });
+  }
+
+  function getGoogleAuthorizationError(error) {
+    if (error === "access_denied") return "A autorizacao para acessar o Google Drive foi negada.";
+    if (error === "popup_closed") return "O login do Google foi cancelado.";
+    return "Nao foi possivel autorizar o acesso ao Google Drive.";
+  }
+
+  function openGooglePicker() {
+    return new Promise((resolve) => {
+      const view = new google.picker.DocsView()
+        .setIncludeFolders(false)
+        .setMimeTypes([googleDrive.sheetsMimeType, googleDrive.xlsxMimeType, googleDrive.xlsMimeType].join(","));
+      const picker = new google.picker.PickerBuilder()
+        .addView(view)
+        .setAppId(window.GOOGLE_DRIVE_CONFIG.appId)
+        .setDeveloperKey(window.GOOGLE_DRIVE_CONFIG.apiKey)
+        .setOAuthToken(googleState.accessToken)
+        .setCallback((data) => {
+          if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED) {
+            resolve(data[google.picker.Response.DOCUMENTS][0]);
+          }
+          if (data[google.picker.Response.ACTION] === google.picker.Action.CANCEL) resolve(null);
+        })
+        .build();
+
+      picker.setVisible(true);
+    });
+  }
+
+  async function downloadGoogleDriveFile(document) {
+    const fileId = document[google.picker.Document.ID] || document.id;
+    const fileName = document[google.picker.Document.NAME] || document.name || "planilha";
+    const mimeType = document[google.picker.Document.MIME_TYPE] || document.mimeType;
+
+    if (!fileId || !mimeType) {
+      throw new Error("O Google Drive nao retornou os dados da planilha selecionada.");
+    }
+
+    if (mimeType === googleDrive.sheetsMimeType) {
+      const content = await requestGoogleDriveFile(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(
+          googleDrive.xlsxMimeType,
+        )}`,
+        "exportar a planilha do Google Sheets",
+      );
+      return createFile(content, ensureExtension(fileName, ".xlsx"), googleDrive.xlsxMimeType);
+    }
+
+    if (mimeType === googleDrive.xlsxMimeType || mimeType === googleDrive.xlsMimeType) {
+      const content = await requestGoogleDriveFile(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+        "baixar o arquivo do Google Drive",
+      );
+      const extension = mimeType === googleDrive.xlsMimeType ? ".xls" : ".xlsx";
+      return createFile(content, ensureExtension(fileName, extension), mimeType);
+    }
+
+    throw new Error("O arquivo selecionado nao e uma planilha Google Sheets, XLSX ou XLS compativel.");
+  }
+
+  async function requestGoogleDriveFile(url, action) {
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${googleState.accessToken}` },
+      });
+    } catch {
+      throw new Error(`Nao foi possivel ${action}. Verifique sua conexao.`);
+    }
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("O Google Drive nao autorizou o acesso a essa planilha.");
+      }
+      throw new Error(`Nao foi possivel ${action}. Tente novamente.`);
+    }
+
+    return response.blob();
+  }
+
+  function createFile(content, name, type) {
+    return new File([content], name, { type });
+  }
+
+  function ensureExtension(name, extension) {
+    return name.toLowerCase().endsWith(extension) ? name : `${name}${extension}`;
+  }
+
+  function setGoogleDriveLoading(isLoading) {
+    els.googleDriveButton.disabled = isLoading;
+    els.googleDriveButton.setAttribute("aria-busy", String(isLoading));
   }
 
   function parseCsv(text) {

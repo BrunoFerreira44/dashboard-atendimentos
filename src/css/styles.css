@@ -127,6 +127,13 @@ h2 {
   transform: translateY(-1px);
 }
 
+.primary-button:disabled,
+.ghost-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  transform: none;
+}
+
 .empty-state {
   display: grid;
   min-height: 58vh;

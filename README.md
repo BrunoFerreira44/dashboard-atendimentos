@@ -4,7 +4,8 @@ Dashboard financeiro simples para transformar uma planilha de atendimentos em in
 
 ## O que o dashboard faz
 
-- Le arquivos `.xlsx`, `.xls`, `.csv` e planilhas do Google Sheets selecionadas pelo navegador.
+- Le arquivos locais `.xlsx`, `.xls` e `.csv`.
+- Importa planilhas Google Sheets e arquivos Excel diretamente do Google Drive.
 - Identifica automaticamente as colunas principais da planilha.
 - Calcula a receita total.
 - Conta o total de atendimentos.
@@ -68,7 +69,7 @@ Data do atendimento;Nome do paciente;Valor da sessao
 
 - Excel: `.xlsx` e `.xls`
 - CSV: `.csv`
-- Google Sheets: planilhas identificadas pelo tipo `application/vnd.google-apps.spreadsheet`
+- Google Drive: Google Sheets, `.xlsx` e `.xls` compativeis
 
 Para arquivos Excel e planilhas do Google Sheets, o dashboard le a primeira aba. Se houver varias abas, deixe os dados principais na primeira.
 
@@ -77,8 +78,8 @@ Para arquivos Excel e planilhas do Google Sheets, o dashboard le a primeira aba.
 1. Crie uma planilha com as 3 colunas obrigatorias.
 2. Preencha uma linha para cada atendimento realizado.
 3. Abra o arquivo `src/index.html` no navegador.
-4. Clique em **Selecionar planilha**.
-5. Escolha o arquivo `.xlsx`, `.xls`, `.csv` ou uma planilha do Google Sheets.
+4. Para arquivos do dispositivo, clique em **Selecionar planilha** e escolha `.xlsx`, `.xls` ou `.csv`.
+5. Para arquivos do Drive, clique em **Selecionar do Google Drive**, entre na conta Google e selecione a planilha.
 6. Aguarde o dashboard gerar os indicadores.
 
 Se quiser testar sem arquivo proprio, clique em **Ver exemplo**.
@@ -110,15 +111,30 @@ http://localhost:8000/src/
 O projeto usa bibliotecas carregadas por CDN no `index.html`:
 
 - Chart.js: renderizacao dos graficos.
-- SheetJS/xlsx: leitura de arquivos Excel e planilhas do Google Sheets selecionadas pelo navegador.
+- SheetJS/xlsx: leitura de arquivos Excel.
+- Google Picker, Google Identity Services e Google Drive API: selecao e leitura de planilhas no Google Drive.
 
-Por isso, e necessario ter conexao com a internet quando abrir o dashboard, a menos que essas bibliotecas sejam baixadas e referenciadas localmente no projeto.
+Por isso, e necessario ter conexao com a internet quando abrir o dashboard, a menos que essas bibliotecas sejam baixadas e referenciadas localmente no projeto. Os recursos do Google sao carregados somente ao clicar em **Selecionar do Google Drive**.
+
+### Configuracao do Google Drive
+
+Preencha `src/js/google-config.js` com os dados do projeto configurado no Google Cloud:
+
+```js
+window.GOOGLE_DRIVE_CONFIG = Object.freeze({
+  clientId: "SEU_OAUTH_CLIENT_ID",
+  apiKey: "SUA_API_KEY",
+  appId: "SEU_PROJECT_NUMBER",
+});
+```
+
+O Client ID, a API Key e o App ID devem pertencer ao mesmo projeto Google Cloud. Mantenha a API Key restrita aos dominios autorizados e as APIs Google necessarias. A aplicacao solicita somente o escopo `https://www.googleapis.com/auth/drive.file`, e o token fica apenas em memoria durante a sessao.
 
 ## Como os dados sao tratados
 
-O processamento acontece no proprio navegador. A planilha selecionada e lida localmente pelo JavaScript da pagina para gerar os indicadores em tela.
+O processamento acontece no proprio navegador. Arquivos locais sao lidos pelo JavaScript da pagina. Arquivos selecionados no Google Drive sao baixados ou exportados para XLSX pela API oficial do Google e seguem a mesma leitura local antes de gerar os indicadores em tela.
 
-O projeto atual nao envia os dados para servidor proprio, banco de dados ou API externa.
+O projeto nao envia os dados para servidor proprio nem banco de dados. Quando o usuario escolhe importar pelo Google Drive, a pagina consulta somente as APIs oficiais do Google para o arquivo explicitamente selecionado.
 
 ## Regras de leitura dos dados
 
@@ -157,7 +173,8 @@ Sao aceitos valores como:
 |   |-- css
 |   |   `-- styles.css
 |   `-- js
-|       `-- app.js
+|       |-- app.js
+|       `-- google-config.js
 `-- README.md
 ```
 
@@ -181,6 +198,11 @@ Contem a logica principal:
 - Renderizacao dos graficos.
 - Preenchimento da tabela.
 - Geracao dos dados de exemplo.
+- Integracao sob demanda com Google Picker, Google Identity Services e Google Drive API.
+
+### `src/js/google-config.js`
+
+Centraliza o OAuth Client ID, a API Key e o Project Number/App ID usados exclusivamente pela integracao com Google Drive.
 
 ## Indicadores exibidos
 
